@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="Flights.Api/Flights.Api.csproj" />
+  <Project Path="M365Agent/M365Agent.atkproj" Type="a9e3f50b-275e-4af7-adce-8be12d41e305">
+    <Deploy />
+  </Project>
+  <Project Path="TravelAgent.AppHost/TravelAgent.AppHost.csproj" Id="d897b8b1-5493-42e8-bfc7-7f45a4e256e5" />
+  <Project Path="TravelAgent.ServiceDefaults/TravelAgent.ServiceDefaults.csproj" />
+  <Project Path="TravelAgent/TravelAgent.csproj" />
+</Solution>
