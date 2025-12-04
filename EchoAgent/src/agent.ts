@@ -1,17 +1,6 @@
 import { ActivityTypes } from "@microsoft/agents-activity";
 import { AgentApplication, MemoryStorage, TurnContext } from "@microsoft/agents-hosting";
-import { AzureOpenAI, OpenAI } from "openai";
-import config from "./config";
 
-const client = new AzureOpenAI({
-  apiVersion: "2024-12-01-preview",
-  apiKey: config.azureOpenAIKey,
-  endpoint: config.azureOpenAIEndpoint,
-  deployment: config.azureOpenAIDeploymentName,
-});
-const systemPrompt = "You are an AI agent that can chat with users.";
-
-// Define storage and application
 const storage = new MemoryStorage();
 export const agentApp = new AgentApplication({
   storage,

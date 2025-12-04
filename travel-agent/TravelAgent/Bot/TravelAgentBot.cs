@@ -1,12 +1,9 @@
-﻿using TravelAgent.Bot.Agents;
-using Microsoft.Agents.Builder;
+﻿using Microsoft.Agents.Builder;
 using Microsoft.Agents.Builder.App;
 using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 
 
 namespace TravelAgent.Bot;
@@ -44,7 +41,7 @@ public class TravelAgentBot : AgentApplication
         _travelAgent = await Agents.TravelAgent.CreateAsync(_chatClient, this, turnContext, _configuration, _loggerFactory);
 
         // Invoke the TravelAgent to process the message
-        TravelAgentResponse travelResponse = await _travelAgent.InvokeAgentAsync(turnContext.Activity.Text, chatHistory);
+        var travelResponse = await _travelAgent.InvokeAgentAsync(turnContext.Activity.Text, chatHistory);
         if (travelResponse == null)
         {
             turnContext.StreamingResponse.QueueTextChunk("Sorry, I couldn't get the travel information at the moment.");
@@ -52,23 +49,8 @@ public class TravelAgentBot : AgentApplication
             return;
         }
 
-        // Create a response message based on the response content type from the TravelAgent
-        // Send the response message back to the user. 
-        switch (travelResponse.ContentType)
-        {
-            case TravelAgentResponseContentType.Text:
-                turnContext.StreamingResponse.QueueTextChunk(travelResponse.Content);
-                break;
-            case TravelAgentResponseContentType.AdaptiveCard:
-                turnContext.StreamingResponse.FinalMessage = MessageFactory.Attachment(new Attachment()
-                {
-                    ContentType = "application/vnd.microsoft.card.adaptive",
-                    Content = travelResponse.Content,
-                });
-                break;
-            default:
-                break;
-        }
+        turnContext.StreamingResponse.QueueTextChunk(travelResponse);
+
         await turnContext.StreamingResponse.EndStreamAsync(cancellationToken); // End the streaming response
     }
 
