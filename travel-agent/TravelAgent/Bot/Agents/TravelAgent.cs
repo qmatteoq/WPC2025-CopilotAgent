@@ -30,6 +30,7 @@ public class TravelAgent
 
         When a customer asks a question about booking flight, first use the retrieval_plugin tool to search the documents and find relevant information. Then, summarize the relevant information into a set of rules of related policies and the referenced documents. After that, use the MCP flight search tools to get real flight data. Don't ask for dates unless the user asks to specify them. Finally, combine the rules from documents and the data from MCP flight API to answer the user's question. The output should be summarization of policies with links of source document referenced, followed by an itinerary with each choice of flights valid, or with certain constraints. Each choice should followed by justification of related policies. Make sure justifications has no contradiction with policies.
         
+        When a user asks about flights using relative date expressions (like 'next week', 'next month', 'tomorrow', 'this weekend'), use the get_current_datetime tool to determine the current date, then calculate the appropriate date range for the flight search.
         
         """;
 
@@ -77,6 +78,9 @@ public class TravelAgent
 
         var retrievalPlugin = new RetrievalPlugin(app, turnContext);
         tools.Add(AIFunctionFactory.Create(retrievalPlugin.BuildRetrievalAsync, name: "retrieval_plugin"));
+
+        // Add DateTimePlugin for handling relative date expressions
+        tools.Add(AIFunctionFactory.Create(DateTimePlugin.GetCurrentDateTime, name: "get_current_datetime"));
 
         // Load MCP tools asynchronously
         var mcpTools = await LoadMcpToolsAsync(configuration);
