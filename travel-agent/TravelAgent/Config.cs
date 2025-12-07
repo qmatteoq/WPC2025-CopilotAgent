@@ -2,7 +2,7 @@ namespace TravelAgent
 {
     public class ConfigOptions
     {
-        public AzureConfigOptions Azure { get; set; }
+        public required AzureConfigOptions Azure { get; set; }
     }
 
     /// <summary>
@@ -10,8 +10,8 @@ namespace TravelAgent
     /// </summary>
     public class AzureConfigOptions
     {
-        public string OpenAIApiKey { get; set; }
-        public string OpenAIEndpoint { get; set; }
-        public string OpenAIDeploymentName { get; set; }
+        public required string OpenAIApiKey { get; set; }
+        public required string OpenAIEndpoint { get; set; }
+        public required string OpenAIDeploymentName { get; set; }
     }
 }
