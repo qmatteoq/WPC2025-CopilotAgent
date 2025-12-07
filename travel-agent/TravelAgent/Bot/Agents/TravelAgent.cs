@@ -5,6 +5,8 @@ using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using TravelAgent.Bot.Plugins;
 
+#nullable enable
+
 namespace TravelAgent.Bot.Agents;
 
 public class TravelAgent
