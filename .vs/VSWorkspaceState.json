@@ -1,0 +1,12 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\.github",
+    "\\.github\\workflows",
+    "\\travel-agent",
+    "\\travel-agent\\.github",
+    "\\travel-agent\\.github\\workflows"
+  ],
+  "SelectedNode": "\\travel-agent\\.github\\workflows\\deploy-m365-agent.yml",
+  "PreviewInSolutionExplorer": false
+}

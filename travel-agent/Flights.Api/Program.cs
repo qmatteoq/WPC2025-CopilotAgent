@@ -14,7 +14,36 @@ builder.Services.AddSingleton<FlightService>();
 
 // Add authentication with Microsoft Entra ID
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+    .AddMicrosoftIdentityWebApi(options =>
+    {
+        builder.Configuration.Bind("AzureAd", options);
+        
+        // Add event handlers for debugging
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine("Token validated successfully");
+                var claims = context.Principal?.Claims.Select(c => $"{c.Type}: {c.Value}");
+                Console.WriteLine($"Claims: {string.Join(", ", claims ?? Array.Empty<string>())}");
+                return Task.CompletedTask;
+            },
+            OnMessageReceived = context =>
+            {
+                var token = context.Request.Headers.Authorization.ToString();
+                Console.WriteLine($"Token received: {(string.IsNullOrEmpty(token) ? "None" : "Present")}");
+                return Task.CompletedTask;
+            }
+        };
+    }, options =>
+    {
+        builder.Configuration.Bind("AzureAd", options);
+    });
 
 builder.Services.AddAuthorization();
 
@@ -28,11 +57,6 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader();
     });
 });
-
-// Add MCP server with tools
-builder.Services.AddMcpServer()
-    .WithHttpTransport()
-    .WithTools<FlightTools>();
 
 builder.Services.AddOpenApi();
 
@@ -54,9 +78,6 @@ app.UseCors();
 // Enable authentication and authorization
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Map MCP server endpoint
-app.MapMcp("/mcp").RequireAuthorization();
 
 // Search flights endpoint
 app.MapGet("/flights/search", (

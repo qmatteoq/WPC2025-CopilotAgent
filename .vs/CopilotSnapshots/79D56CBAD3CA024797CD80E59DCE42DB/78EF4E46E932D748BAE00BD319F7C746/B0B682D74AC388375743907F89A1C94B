@@ -1,0 +1,124 @@
+﻿name: Build and Deploy M365 Agent
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'TravelAgent/**'
+      - 'M365Agent/**'
+      - 'TravelAgent.ServiceDefaults/**'
+      - 'Flights.Api/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  WORKING_DIRECTORY: './TravelAgent'
+  M365_WORKING_DIRECTORY: './M365Agent'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+
+      - name: Build project
+        run: dotnet build --configuration Release --no-restore
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+
+      - name: Publish project
+        run: dotnet publish --configuration Release --output ./publish --no-build
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+
+      - name: Upload artifact for deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: travel-agent
+          path: ${{ env.WORKING_DIRECTORY }}/publish
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment: 
+      name: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: travel-agent
+          path: ./publish
+
+      - name: Setup Node.js (for Teams Toolkit CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Microsoft 365 Agents Toolkit CLI
+        run: npm install -g @microsoft/teamsfx-cli
+
+      - name: Setup environment variables
+        working-directory: ${{ env.M365_WORKING_DIRECTORY }}
+        run: |
+          ENV_NAME="${{ github.event.inputs.environment || 'dev' }}"
+          echo "TEAMSFX_ENV=$ENV_NAME" >> $GITHUB_ENV
+          
+          # Create env file if it doesn't exist
+          mkdir -p ./env
+          
+          # Set environment variables from secrets
+          cat > ./env/.env.$ENV_NAME.user << EOF
+          SECRET_AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_DEPLOYMENT_NAME=${{ secrets.AZURE_OPENAI_DEPLOYMENT_NAME }}
+          SECRET_AAD_APP_CLIENT_SECRET=${{ secrets.AAD_APP_CLIENT_SECRET }}
+          EOF
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_APP_SERVICE_NAME }}
+          package: ./publish
+
+      - name: Update Teams App
+        working-directory: ${{ env.M365_WORKING_DIRECTORY }}
+        run: |
+          # Set environment variables needed for Teams Toolkit
+          export AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          export AZURE_RESOURCE_GROUP_NAME=${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
+          
+          # Validate and update the Teams app package
+          teamsfx validate --env ${{ github.event.inputs.environment || 'dev' }}
+          teamsfx update --env ${{ github.event.inputs.environment || 'dev' }}
+
+      - name: Logout from Azure
+        run: az logout
+        if: always()
