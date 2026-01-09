@@ -1,7 +1,9 @@
 using Flights.Api.Mcp;
 using Flights.Api.Models;
 using Flights.Api.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.AI;
+using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +11,12 @@ builder.AddServiceDefaults();
 
 // Add services to the container.
 builder.Services.AddSingleton<FlightService>();
+
+// Add authentication with Microsoft Entra ID
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+
+builder.Services.AddAuthorization();
 
 // Add CORS policy to allow any web application to call the API
 builder.Services.AddCors(options =>
@@ -43,8 +51,12 @@ if (app.Environment.IsDevelopment())
 // Enable CORS
 app.UseCors();
 
+// Enable authentication and authorization
+app.UseAuthentication();
+app.UseAuthorization();
+
 // Map MCP server endpoint
-app.MapMcp("/mcp");
+app.MapMcp("/mcp").RequireAuthorization();
 
 // Search flights endpoint
 app.MapGet("/flights/search", (
@@ -59,7 +71,8 @@ app.MapGet("/flights/search", (
     return Results.Ok(flights);
 })
 .WithName("SearchFlights")
-.WithDescription("Search for flights by origin, destination, and departure date");
+.WithDescription("Search for flights by origin, destination, and departure date")
+.RequireAuthorization();
 
 // Get flight by flight number
 app.MapGet("/flights/{flightNumber}", (FlightService flightService, string flightNumber) =>
@@ -68,7 +81,8 @@ app.MapGet("/flights/{flightNumber}", (FlightService flightService, string fligh
     return flight is not null ? Results.Ok(flight) : Results.NotFound();
 })
 .WithName("GetFlightByNumber")
-.WithDescription("Get detailed information about a specific flight by flight number");
+.WithDescription("Get detailed information about a specific flight by flight number")
+.RequireAuthorization();
 
 // Get all available origins
 app.MapGet("/flights/airports/origins", (FlightService flightService) =>
@@ -77,7 +91,8 @@ app.MapGet("/flights/airports/origins", (FlightService flightService) =>
     return Results.Ok(origins);
 })
 .WithName("GetAvailableOrigins")
-.WithDescription("Get list of all available departure airports");
+.WithDescription("Get list of all available departure airports")
+.RequireAuthorization();
 
 // Get all available destinations
 app.MapGet("/flights/airports/destinations", (FlightService flightService) =>
@@ -86,6 +101,7 @@ app.MapGet("/flights/airports/destinations", (FlightService flightService) =>
     return Results.Ok(destinations);
 })
 .WithName("GetAvailableDestinations")
-.WithDescription("Get list of all available destination airports");
+.WithDescription("Get list of all available destination airports")
+.RequireAuthorization();
 
 app.Run();

@@ -9,4 +9,8 @@ builder.AddDevTunnel("agent")
     .WithReference(agent)
     .WithAnonymousAccess();
 
+builder.AddDevTunnel("flightsapi")
+    .WithReference(api)
+    .WithAnonymousAccess();
+
 builder.Build().Run();
