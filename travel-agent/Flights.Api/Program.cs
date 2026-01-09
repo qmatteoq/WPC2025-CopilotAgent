@@ -58,6 +58,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddMcpServer()
+    .WithHttpTransport()
+    .WithTools<FlightTools>();
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -78,6 +82,10 @@ app.UseCors();
 // Enable authentication and authorization
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Map MCP endpoints
+app.MapMcp("/mcp")
+.RequireAuthorization();
 
 // Search flights endpoint
 app.MapGet("/flights/search", (
