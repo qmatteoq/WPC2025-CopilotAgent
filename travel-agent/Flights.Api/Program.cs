@@ -1,10 +1,8 @@
 using Flights.Api.Mcp;
 using Flights.Api.Models;
 using Flights.Api.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.AI;
-using Microsoft.Identity.Web;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
@@ -14,41 +12,6 @@ builder.AddServiceDefaults();
 
 // Add services to the container.
 builder.Services.AddSingleton<FlightService>();
-
-// Add authentication with Microsoft Entra ID
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(options =>
-    {
-        builder.Configuration.Bind("AzureAd", options);
-        
-        // Add event handlers for debugging
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = context =>
-            {
-                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
-                return Task.CompletedTask;
-            },
-            OnTokenValidated = context =>
-            {
-                Console.WriteLine("Token validated successfully");
-                var claims = context.Principal?.Claims.Select(c => $"{c.Type}: {c.Value}");
-                Console.WriteLine($"Claims: {string.Join(", ", claims ?? Array.Empty<string>())}");
-                return Task.CompletedTask;
-            },
-            OnMessageReceived = context =>
-            {
-                var token = context.Request.Headers.Authorization.ToString();
-                Console.WriteLine($"Token received: {(string.IsNullOrEmpty(token) ? "None" : "Present")}");
-                return Task.CompletedTask;
-            }
-        };
-    }, options =>
-    {
-        builder.Configuration.Bind("AzureAd", options);
-    });
-
-builder.Services.AddAuthorization();
 
 // Add CORS policy to allow any web application to call the API
 builder.Services.AddCors(options =>
@@ -258,11 +221,7 @@ app.MapScalarApiReference(options =>
 // Enable CORS
 app.UseCors();
 
-// Enable authentication and authorization
-app.UseAuthentication();
-app.UseAuthorization();
-
-// Map MCP endpoints
+// Map MCP endpoints - Authentication handled by APIM
 app.MapMcp("/mcp");
 
 // Search flights endpoint
@@ -280,8 +239,7 @@ app.MapGet("/flights/search", (
 .WithName("SearchFlights")
 .WithSummary("Search for available flights")
 .WithDescription("Search for flights by origin, destination, and departure date. All parameters are optional.")
-.WithTags("Flights")
-.RequireAuthorization();
+.WithTags("Flights");
 
 // Get flight by flight number
 app.MapGet("/flights/{flightNumber}", (FlightService flightService, string flightNumber) =>
@@ -292,8 +250,7 @@ app.MapGet("/flights/{flightNumber}", (FlightService flightService, string fligh
 .WithName("GetFlightByNumber")
 .WithSummary("Get flight details by flight number")
 .WithDescription("Get detailed information about a specific flight by its flight number (e.g., 'BA112', 'AA100')")
-.WithTags("Flights")
-.RequireAuthorization();
+.WithTags("Flights");
 
 // Get all available origins
 app.MapGet("/flights/airports/origins", (FlightService flightService) =>
@@ -304,8 +261,7 @@ app.MapGet("/flights/airports/origins", (FlightService flightService) =>
 .WithName("GetAvailableOrigins")
 .WithSummary("Get all available departure airports")
 .WithDescription("Returns a list of all departure airports/cities available in the system")
-.WithTags("Flights")
-.RequireAuthorization();
+.WithTags("Flights");
 
 // Get all available destinations
 app.MapGet("/flights/airports/destinations", (FlightService flightService) =>
@@ -316,7 +272,6 @@ app.MapGet("/flights/airports/destinations", (FlightService flightService) =>
 .WithName("GetAvailableDestinations")
 .WithSummary("Get all available destination airports")
 .WithDescription("Returns a list of all destination airports/cities available in the system")
-.WithTags("Flights")
-.RequireAuthorization();
+.WithTags("Flights");
 
 app.Run();
