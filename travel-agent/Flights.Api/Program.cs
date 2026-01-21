@@ -4,7 +4,7 @@ using Flights.Api.Services;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.AI;
 using Microsoft.OpenApi;
-using Scalar.AspNetCore;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -97,51 +97,26 @@ builder.Services.AddOpenApi(options =>
             });
         }
 
-        // Add MCP endpoint to paths (MCP uses HTTP streaming transport, not auto-documented by ASP.NET)
+        // Add MCP endpoint to paths (MCP uses Streamable HTTP transport, not auto-documented by ASP.NET)
         var mcpTag = new OpenApiTagReference("MCP");
         
-        var mcpSsePathItem = new OpenApiPathItem
-        {
-            Operations = new Dictionary<HttpMethod, OpenApiOperation>
-            {
-                [HttpMethod.Get] = new OpenApiOperation
-                {
-                    Tags = new HashSet<OpenApiTagReference> { mcpTag },
-                    Summary = "MCP HTTP streaming endpoint",
-                    Description = "Establishes an HTTP streaming connection for MCP communication using the Streamable HTTP transport. " +
-                                  "This endpoint is used by MCP clients to maintain a persistent connection and receive messages from the server. " +
-                                  "The client should send JSON-RPC messages to the /mcp/message endpoint.",
-                    OperationId = "McpHttpStream",
-                    Responses = new OpenApiResponses
-                    {
-                        ["200"] = new OpenApiResponse
-                        {
-                            Description = "HTTP streaming connection established. Uses chunked transfer encoding for persistent connection."
-                        },
-                        ["401"] = new OpenApiResponse
-                        {
-                            Description = "Unauthorized - Valid authentication token required"
-                        }
-                    }
-                }
-            }
-        };
-
-        var mcpMessagePathItem = new OpenApiPathItem
+        var mcpPathItem = new OpenApiPathItem
         {
             Operations = new Dictionary<HttpMethod, OpenApiOperation>
             {
                 [HttpMethod.Post] = new OpenApiOperation
                 {
                     Tags = new HashSet<OpenApiTagReference> { mcpTag },
-                    Summary = "MCP Message endpoint",
-                    Description = "Sends JSON-RPC messages to the MCP server. This endpoint handles tool invocations " +
-                                  "and other MCP protocol messages. Available tools:\n\n" +
+                    Summary = "MCP Streamable HTTP endpoint",
+                    Description = "Single endpoint for MCP communication using the Streamable HTTP transport. " +
+                                  "Clients send JSON-RPC 2.0 messages via POST and receive responses. " +
+                                  "Supports streaming responses via chunked transfer encoding.\n\n" +
+                                  "Available tools:\n\n" +
                                   "- **SearchFlights**: Search flights by origin, destination, and date\n" +
                                   "- **GetFlightDetails**: Get details for a specific flight number\n" +
                                   "- **GetAirportsOrigins**: List all departure airports\n" +
                                   "- **GetAirportsDestinations**: List all destination airports",
-                    OperationId = "McpMessage",
+                    OperationId = "McpStreamableHttp",
                     RequestBody = new OpenApiRequestBody
                     {
                         Description = "JSON-RPC 2.0 message for MCP protocol",
@@ -168,7 +143,7 @@ builder.Services.AddOpenApi(options =>
                                         ["method"] = new OpenApiSchema
                                         {
                                             Type = JsonSchemaType.String,
-                                            Description = "MCP method name (e.g., \"tools/call\", \"tools/list\")"
+                                            Description = "MCP method name (e.g., \"tools/call\", \"tools/list\", \"initialize\")"
                                         },
                                         ["params"] = new OpenApiSchema
                                         {
@@ -184,7 +159,7 @@ builder.Services.AddOpenApi(options =>
                     {
                         ["200"] = new OpenApiResponse
                         {
-                            Description = "JSON-RPC response with result or error"
+                            Description = "JSON-RPC response. May use chunked transfer encoding for streaming responses."
                         },
                         ["401"] = new OpenApiResponse
                         {
@@ -195,8 +170,7 @@ builder.Services.AddOpenApi(options =>
             }
         };
 
-        document.Paths["/mcp"] = mcpSsePathItem;
-        document.Paths["/mcp/message"] = mcpMessagePathItem;
+        document.Paths["/mcp"] = mcpPathItem;
 
         return Task.CompletedTask;
     });
@@ -209,12 +183,6 @@ app.MapDefaultEndpoints();
 // Configure the HTTP request pipeline.
 // OpenAPI and Scalar UI are available in all environments
 app.MapOpenApi();
-app.MapScalarApiReference(options =>
-{
-    options.WithTitle("Flights API");
-    options.WithTheme(ScalarTheme.BluePlanet);
-    options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-});
 
 //app.UseHttpsRedirection();
 
